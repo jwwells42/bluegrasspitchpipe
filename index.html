@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Free, open-source pitch pipe for bluegrass instruments. No tracking, no ads, no nonsense.">
+  <title>Bluegrass Pitch Pipe</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Bluegrass Pitch Pipe</h1>
+    <p class="subtitle">A440 reference tones</p>
+  </header>
+
+  <main>
+    <div id="instrument-selector" role="group" aria-label="Instrument">
+      <button data-instrument="fiddle" class="instrument-btn active" aria-pressed="true">Fiddle / Mandolin</button>
+      <button data-instrument="guitar" class="instrument-btn" aria-pressed="false">Guitar</button>
+      <button data-instrument="banjo" class="instrument-btn" aria-pressed="false">Banjo</button>
+      <button data-instrument="bass" class="instrument-btn" aria-pressed="false">Bass</button>
+      <button data-instrument="custom" class="instrument-btn" aria-pressed="false">Custom</button>
+    </div>
+
+    <div id="tuning-selector" role="group" aria-label="Tuning"></div>
+
+    <div id="strings" role="group" aria-label="Strings"></div>
+
+    <button id="stop-all" aria-label="Stop all tones">Stop All</button>
+
+    <div id="custom-controls" hidden>
+      <div class="custom-header">
+        <span>Strings</span>
+        <div class="custom-count">
+          <button id="remove-string" aria-label="Remove string">&minus;</button>
+          <span id="string-count">4</span>
+          <button id="add-string" aria-label="Add string">+</button>
+        </div>
+      </div>
+      <div id="custom-strings"></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Open source (AGPL-3.0) · A440 · No tracking</p>
+  </footer>
+</body>
+</html>

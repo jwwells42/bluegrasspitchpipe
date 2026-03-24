@@ -1,0 +1,327 @@
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --elevated: #0f3460;
+  --text: #e0e0e0;
+  --muted: #8a8a9a;
+  --accent: #e94560;
+  --accent-glow: rgba(233, 69, 96, 0.4);
+  --reference: #f5a623;
+  --reference-glow: rgba(245, 166, 35, 0.3);
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "SF Mono", "Fira Code", Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
+}
+
+header {
+  text-align: center;
+  padding: 1.5rem 1rem 1rem;
+}
+
+header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+main {
+  flex: 1;
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+/* Instrument & tuning selectors */
+
+#instrument-selector,
+#tuning-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.instrument-btn,
+.tuning-btn {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--elevated);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.instrument-btn:hover,
+.tuning-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.instrument-btn.active,
+.tuning-btn.active {
+  background: var(--elevated);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.instrument-btn:focus-visible,
+.tuning-btn:focus-visible,
+.string-btn:focus-visible,
+#stop-all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Strings grid */
+
+#strings {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.string-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 100px;
+  padding: 0.75rem 0.25rem;
+  border: 2px solid var(--elevated);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: var(--font);
+  position: relative;
+}
+
+.string-btn:hover {
+  border-color: var(--muted);
+}
+
+.string-btn .note {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.string-btn .octave {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.string-btn .freq {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+/* Reference string — no special styling */
+
+/* Playing state */
+
+.string-btn.playing {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+  box-shadow: 0 0 12px var(--accent-glow);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.string-btn.reference.playing {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+  box-shadow: 0 0 12px var(--accent-glow);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+  50% { box-shadow: 0 0 20px var(--accent-glow); }
+}
+
+@keyframes pulse-ref {
+  0%, 100% { box-shadow: 0 0 8px var(--reference-glow); }
+  50% { box-shadow: 0 0 20px var(--reference-glow); }
+}
+
+/* Banjo short string indicator */
+
+.string-btn.short .note {
+  font-style: italic;
+}
+
+.string-btn.short::before {
+  content: "5th";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 0.5rem;
+  color: var(--muted);
+}
+
+/* Stop All */
+
+#stop-all {
+  display: block;
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--elevated);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  margin-bottom: 1.5rem;
+}
+
+#stop-all:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+#stop-all.has-playing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Custom controls */
+
+#custom-controls {
+  margin-bottom: 1rem;
+}
+
+.custom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.custom-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-count button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--elevated);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  transition: border-color 0.15s ease;
+}
+
+.custom-count button:hover {
+  border-color: var(--accent);
+}
+
+#string-count {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+#custom-strings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.custom-string-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-string-row label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-width: 1.5rem;
+}
+
+.custom-string-row select {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--elevated);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.custom-string-row select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Footer */
+
+footer {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+footer a:hover {
+  color: var(--text);
+}
