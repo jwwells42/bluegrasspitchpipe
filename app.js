@@ -145,86 +145,28 @@
   }
 
   // ── Audio Engine ─────────────────────────────────────────────────
-  // Uses generated WAV blobs + <audio> elements instead of Web Audio
-  // destination node, which is broken on some Chrome + Linux/PipeWire setups.
+  // Web Audio API oscillators for instant, continuous, gapless tones.
+  // Single shared AudioContext, one oscillator set per active string.
 
-  var SAMPLE_RATE = 44100;
-
-  // Harmonic recipe for a warm pitch-pipe tone
-  var HARMONICS = [
-    { mult: 1, amp: 1.0 },    // fundamental
-    { mult: 2, amp: 0.4 },    // 2nd
-    { mult: 3, amp: 0.25 },   // 3rd (odd, warmth)
-    { mult: 4, amp: 0.1 },    // 4th
-    { mult: 5, amp: 0.15 },   // 5th (odd)
-    { mult: 6, amp: 0.05 },   // 6th
-    { mult: 7, amp: 0.08 },   // 7th (odd)
-  ];
-
-  // Vibrato: gentle pitch wobble
+  // Vibrato settings
   var VIBRATO_RATE = 5.0;    // Hz — speed of the wobble
   var VIBRATO_DEPTH = 0.006; // ±0.6% pitch deviation (~10 cents)
 
-  function generateToneWav(freq) {
-    // Buffer = exact integer of vibrato cycles for seamless loop
-    var vibratoCycles = Math.max(1, Math.round(2 * VIBRATO_RATE)); // ~2s
-    var duration = vibratoCycles / VIBRATO_RATE;
-    var numSamples = Math.round(duration * SAMPLE_RATE);
-
-    var buffer = new ArrayBuffer(44 + numSamples * 2);
-    var view = new DataView(buffer);
-
-    // WAV header
-    function writeStr(off, s) { for (var i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); }
-    writeStr(0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeStr(8, 'WAVE');
-    writeStr(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, SAMPLE_RATE, true);
-    view.setUint32(28, SAMPLE_RATE * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeStr(36, 'data');
-    view.setUint32(40, numSamples * 2, true);
-
-    // Generate samples using phase accumulation for accurate vibrato looping
-    var phases = [];
-    for (var h = 0; h < HARMONICS.length; h++) phases[h] = 0;
-
-    for (var i = 0; i < numSamples; i++) {
-      var t = i / SAMPLE_RATE;
-      // Vibrato: modulate frequency slightly
-      var vibrato = 1 + VIBRATO_DEPTH * Math.sin(2 * Math.PI * VIBRATO_RATE * t);
-      var instFreq = freq * vibrato;
-
-      var sample = 0;
-      for (var h = 0; h < HARMONICS.length; h++) {
-        var hFreq = instFreq * HARMONICS[h].mult;
-        if (hFreq > SAMPLE_RATE / 2) break;
-        phases[h] += hFreq / SAMPLE_RATE;
-        sample += HARMONICS[h].amp * Math.sin(2 * Math.PI * phases[h]);
-      }
-      sample *= 0.35;
-      view.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, sample * 32767)), true);
-    }
-
-    return new Blob([buffer], { type: 'audio/wav' });
-  }
-
   var audio = {
+    ctx: null,
+    masterGain: null,
     active: new Map(),
-    urlCache: new Map(),
 
-    getToneUrl: function (freq) {
-      // Cache generated WAVs by frequency to avoid regenerating
-      var key = freq.toFixed(2);
-      if (!this.urlCache.has(key)) {
-        this.urlCache.set(key, URL.createObjectURL(generateToneWav(freq)));
+    ensureContext: function () {
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.7;
+        this.masterGain.connect(this.ctx.destination);
       }
-      return this.urlCache.get(key);
+      if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+        this.ctx.resume();
+      }
     },
 
     toggleTone: function (index, freq) {
@@ -233,52 +175,76 @@
         return false;
       }
 
-      var url = this.getToneUrl(freq);
+      this.ensureContext();
+      var ctx = this.ctx;
+      var now = ctx.currentTime;
 
-      // Two audio elements for gapless looping: start the next one
-      // just before the current one ends to avoid decode gap
-      var elA = new Audio(url);
-      var elB = new Audio(url);
-      elA.preload = 'auto';
-      elB.preload = 'auto';
-      elA.volume = 0.7;
-      elB.volume = 0.7;
+      // Main oscillator — triangle for warmth
+      var osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
 
-      var entry = { els: [elA, elB], current: 0, stopped: false };
+      // Vibrato via LFO modulating oscillator frequency
+      var lfo = ctx.createOscillator();
+      var lfoGain = ctx.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(VIBRATO_RATE, now);
+      lfoGain.gain.setValueAtTime(freq * VIBRATO_DEPTH, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
 
-      function scheduleNext(playing, next) {
-        playing.ontimeupdate = function () {
-          if (entry.stopped) return;
-          // Start next element 150ms before current ends
-          if (playing.duration - playing.currentTime < 0.15) {
-            playing.ontimeupdate = null;
-            next.currentTime = 0;
-            next.play();
-            // When next starts playing, set up its own handoff
-            next.onplay = function () {
-              next.onplay = null;
-              scheduleNext(next, playing);
-            };
-          }
-        };
-      }
+      // Second harmonic for body
+      var osc2 = ctx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq * 2, now);
 
-      elA.play();
-      scheduleNext(elA, elB);
+      // Vibrato on second harmonic too
+      var lfoGain2 = ctx.createGain();
+      lfoGain2.gain.setValueAtTime(freq * 2 * VIBRATO_DEPTH, now);
+      lfo.connect(lfoGain2);
+      lfoGain2.connect(osc2.frequency);
 
-      this.active.set(index, entry);
+      // Per-string gain with fade-in
+      var gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.25, now + 0.04);
+
+      var gain2 = ctx.createGain();
+      gain2.gain.setValueAtTime(0.0001, now);
+      gain2.gain.linearRampToValueAtTime(0.08, now + 0.04);
+
+      osc.connect(gain);
+      osc2.connect(gain2);
+      gain.connect(this.masterGain);
+      gain2.connect(this.masterGain);
+
+      osc.start(now);
+      osc2.start(now);
+      lfo.start(now);
+
+      this.active.set(index, {
+        oscs: [osc, osc2, lfo],
+        gains: [gain, gain2]
+      });
       return true;
     },
 
     stopTone: function (index) {
-      var entry = this.active.get(index);
-      if (!entry) return;
-      entry.stopped = true;
-      entry.els.forEach(function (el) {
-        el.ontimeupdate = null;
-        el.pause();
-        el.currentTime = 0;
+      var nodes = this.active.get(index);
+      if (!nodes) return;
+
+      var now = this.ctx.currentTime;
+      // Fade out to avoid click
+      nodes.gains.forEach(function (g) {
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.05);
       });
+      // Stop oscillators after fade completes
+      nodes.oscs.forEach(function (o) {
+        o.stop(now + 0.06);
+      });
+
       this.active.delete(index);
     },
 

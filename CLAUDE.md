@@ -14,14 +14,17 @@ Pure vanilla HTML/CSS/JS. Zero dependencies. No framework, no bundler, no npm.
 
 ## Audio Engine
 
-Web Audio API's destination node is broken on some Chrome + Linux/PipeWire setups. The audio engine generates WAV blobs in memory and plays them via `<audio>` elements instead. Tones include harmonics and vibrato baked into the WAV data.
+Uses Web Audio API OscillatorNodes for real-time tone generation. Each string creates:
+- Triangle wave oscillator (fundamental) — warm, not harsh
+- Sine wave oscillator (2nd harmonic) — adds body
+- LFO oscillator modulating both frequencies — vibrato
 
 Key constants in `app.js` for tuning the sound:
-- `HARMONICS` — array of `{ mult, amp }` controlling the harmonic recipe
 - `VIBRATO_RATE` — wobble speed in Hz (currently 5.0)
 - `VIBRATO_DEPTH` — pitch deviation as a fraction (currently 0.006 = ±10 cents)
 
-WAVs are cached by frequency in `audio.urlCache`. Gapless looping uses two `<audio>` elements that alternate.
+Single shared AudioContext, lazily created on first user tap (required for iOS Safari). Gain ramping on start/stop prevents click artifacts.
+
 
 ## Conventions
 
