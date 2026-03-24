@@ -11,6 +11,7 @@ Pure vanilla HTML/CSS/JS. Zero dependencies. No framework, no bundler, no npm.
 - `index.html` — single-page app shell
 - `style.css` — mobile-first dark theme, CSS custom properties
 - `app.js` — instrument data, audio engine, UI controller (all in one IIFE)
+- `a/index.html` — standalone A440 page, self-contained (own CSS/JS inline)
 
 ## Audio Engine
 

@@ -14,7 +14,9 @@ A free, open-source pitch pipe for bluegrass instruments. No tracking, no ads, n
 
 ## How It Works
 
-Tones are generated as WAV audio in the browser — no server, no external requests. Tap a string to play its reference pitch, tap another to switch. Multiple tunings per instrument. A440 standard.
+Tones are generated in the browser via Web Audio API — no server, no external requests. Tap a string to play its reference pitch, tap another to switch. Multiple tunings per instrument. A440 standard.
+
+Bookmark `/a` for a quick standalone A440 tone.
 
 ## Tech
 
