@@ -148,9 +148,26 @@
   // Web Audio API oscillators for instant, continuous, gapless tones.
   // Single shared AudioContext, one oscillator set per active string.
 
-  // Vibrato settings
-  var VIBRATO_RATE = 5.0;    // Hz — speed of the wobble
-  var VIBRATO_DEPTH = 0.006; // ±0.6% pitch deviation (~10 cents)
+  // ── Sound design knobs ──────────────────────────────────────────
+  //
+  // VIBRATO — pitch wobble
+  var VIBRATO_RATE = 4.5;    // Hz — speed of the wobble
+  var VIBRATO_DEPTH = 0.004; // ±0.4% pitch deviation (~7 cents)
+  //
+  // FILTER — controls brightness of the sawtooth tone
+  var FILTER_CUTOFF = 2000;  // Hz — higher = brighter, lower = darker/warmer
+  // var FILTER_Q = 1;       // resonance — higher = more nasal peak at cutoff (default 1)
+  //
+  // OSCILLATOR TYPES — swap these to change the character:
+  //   'sine'     — pure, clean, tuning fork
+  //   'triangle' — warm, soft harmonics
+  //   'square'   — hollow, reedy, clarinet-like
+  //   'sawtooth' — bright, all harmonics, rich (best paired with filter)
+  //
+  // EXTRA IDEAS to try:
+  //   Detune for chorus:  osc2.detune.value = 5;  (thickens the sound)
+  //   Tremolo:  connect an LFO to gain instead of frequency
+  //   Slower attack:  change 0.04 fade-in to 0.2 for breathy onset
 
   var audio = {
     ctx: null,
@@ -179,10 +196,15 @@
       var ctx = this.ctx;
       var now = ctx.currentTime;
 
-      // Main oscillator — triangle for warmth
+      // Main oscillator — sawtooth has all harmonics, filter tames it
       var osc = ctx.createOscillator();
-      osc.type = 'triangle';
+      osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(freq, now);
+
+      // Low-pass filter — rolls off harsh highs from sawtooth
+      var filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(FILTER_CUTOFF, now);
 
       // Vibrato via LFO modulating oscillator frequency
       var lfo = ctx.createOscillator();
@@ -193,38 +215,22 @@
       lfo.connect(lfoGain);
       lfoGain.connect(osc.frequency);
 
-      // Second harmonic for body
-      var osc2 = ctx.createOscillator();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(freq * 2, now);
-
-      // Vibrato on second harmonic too
-      var lfoGain2 = ctx.createGain();
-      lfoGain2.gain.setValueAtTime(freq * 2 * VIBRATO_DEPTH, now);
-      lfo.connect(lfoGain2);
-      lfoGain2.connect(osc2.frequency);
-
       // Per-string gain with fade-in
       var gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(0.25, now + 0.04);
 
-      var gain2 = ctx.createGain();
-      gain2.gain.setValueAtTime(0.0001, now);
-      gain2.gain.linearRampToValueAtTime(0.08, now + 0.04);
-
-      osc.connect(gain);
-      osc2.connect(gain2);
+      // Signal chain: osc → filter → gain → master
+      osc.connect(filter);
+      filter.connect(gain);
       gain.connect(this.masterGain);
-      gain2.connect(this.masterGain);
 
       osc.start(now);
-      osc2.start(now);
       lfo.start(now);
 
       this.active.set(index, {
-        oscs: [osc, osc2, lfo],
-        gains: [gain, gain2]
+        oscs: [osc, lfo],
+        gains: [gain]
       });
       return true;
     },
