@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A440 reference tone">
+  <title>A440</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    #tone {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      border: 3px solid #0f3460;
+      background: #16213e;
+      color: #e0e0e0;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: 4rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    #tone.playing {
+      border-color: #e94560;
+      background: rgba(233, 69, 96, 0.1);
+      box-shadow: 0 0 30px rgba(233, 69, 96, 0.4);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(233, 69, 96, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(233, 69, 96, 0.5); }
+    }
+    .hz { font-size: 0.85rem; color: #8a8a9a; margin-top: 1rem; }
+    .back { position: fixed; top: 1rem; left: 1rem; color: #8a8a9a; font-size: 0.8rem; text-decoration: none; }
+    .back:hover { color: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">&#8592; pitch pipe</a>
+  <button id="tone">A</button>
+  <div class="hz">440 Hz</div>
+  <script>
+    (function () {
+      var btn = document.getElementById('tone');
+      var ctx = null;
+      var nodes = null;
+
+      function start() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended' || ctx.state === 'interrupted') ctx.resume();
+        var now = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        var lfo = ctx.createOscillator();
+        var lfoGain = ctx.createGain();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(5.0, now);
+        lfoGain.gain.setValueAtTime(440 * 0.006, now);
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        var osc2 = ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, now);
+        var lfoGain2 = ctx.createGain();
+        lfoGain2.gain.setValueAtTime(880 * 0.006, now);
+        lfo.connect(lfoGain2);
+        lfoGain2.connect(osc2.frequency);
+        var g1 = ctx.createGain();
+        g1.gain.setValueAtTime(0.0001, now);
+        g1.gain.linearRampToValueAtTime(0.25, now + 0.04);
+        var g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.0001, now);
+        g2.gain.linearRampToValueAtTime(0.08, now + 0.04);
+        osc.connect(g1);
+        osc2.connect(g2);
+        g1.connect(ctx.destination);
+        g2.connect(ctx.destination);
+        osc.start(now);
+        osc2.start(now);
+        lfo.start(now);
+        nodes = { oscs: [osc, osc2, lfo], gains: [g1, g2] };
+        btn.classList.add('playing');
+      }
+
+      function stop() {
+        if (!nodes) return;
+        var now = ctx.currentTime;
+        nodes.gains.forEach(function (g) {
+          g.gain.cancelScheduledValues(now);
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.linearRampToValueAtTime(0, now + 0.05);
+        });
+        nodes.oscs.forEach(function (o) { o.stop(now + 0.06); });
+        nodes = null;
+        btn.classList.remove('playing');
+      }
+
+      btn.addEventListener('click', function () {
+        if (nodes) stop(); else start();
+      });
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) stop();
+      });
+    })();
+  </script>
+</body>
+</html>
